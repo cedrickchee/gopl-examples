@@ -1,7 +1,11 @@
 // Various code samples for chapter 2.
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+	"os"
+)
 
 func main() {
 	pointers()
@@ -32,6 +36,15 @@ func main() {
 
 	// =========================================================================
 	tupleAssignment()
+
+	// =========================================================================
+	lexicalBlock()
+
+	// =========================================================================
+	implicitBlocks()
+
+	// =========================================================================
+	awarenessOfScope()
 }
 
 // Pointers
@@ -107,4 +120,51 @@ func fib(n int) int {
 		x, y = y, x+y
 	}
 	return x
+}
+
+func lexicalBlock() {
+	x := "hello!"
+	for i := 0; i < len(x); i++ {
+		x := x[i] // x = [104,101,108,108,111,33]
+		if x != '!' {
+			// Expression is not equivalent to unicode.ToUpper
+			x := x + 'A' - 'a'
+			fmt.Printf("%c", x) // "HELLO" (one letter per iteration)
+		}
+	}
+}
+
+func implicitBlocks() {
+	f := func() int { return 0 }
+	g := func(x int) int { return 0 }
+
+	if x := f(); x == 0 {
+		fmt.Println(x)
+	} else if y := g(x); x == y {
+		fmt.Println(x, y)
+	} else {
+		fmt.Println(x, y)
+	}
+	/*
+		fmt.Println(x, y) // compile error: x and y are not visible here
+	*/
+}
+
+// The global cwd variable remains uninitialized, and the apparently normal log
+// output obfuscates the bug.
+var cwd string
+
+func awarenessOfScope() {
+	// There are a number of ways to deal with this potential problem.
+	// The most direct is to avoid := by declaring err in a separate
+	// var declaration
+
+	// cwd, err := os.Getwd()
+	var err error
+	cwd, err = os.Getwd()
+
+	if err != nil {
+		log.Fatalf("os.Getwd failed: %v", err)
+	}
+	// log.Printf("Working directory = %s", cwd)
 }
