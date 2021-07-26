@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math"
 	"math/cmplx"
+	"strconv"
+	"time"
 	"unicode/utf8"
 )
 
@@ -69,6 +71,12 @@ func main() {
 
 	// =========================================================================
 	convertStringToByteSlice()
+
+	// =========================================================================
+	convertIntToString()
+
+	// =========================================================================
+	constants()
 }
 
 func integerOverflow() {
@@ -398,4 +406,137 @@ func convertStringToByteSlice() {
 	fmt.Println("byte slice =", b)
 	s2 := string(b)
 	fmt.Println("string =", s2)
+}
+
+// Convert between numeric values and their string representations.
+func convertIntToString() {
+	// Convert an integer to a string
+	x := 123
+	y := fmt.Sprintf("%d", x)
+	// integer to ASCII
+	fmt.Println(y, strconv.Itoa(x)) // "123 123"
+	// FormatInt and FormatUint can be used to format numbers in a
+	// different base.
+	fmt.Println(strconv.FormatInt(int64(x), 2)) // "1111011"
+
+	// To parse a string representing an integer, use the strconv functions
+	// Atoi or ParseInt, or ParseUint for unsigned integers.
+	m, _ := strconv.Atoi("123") // m is an int
+	fmt.Printf("m is type of %T\n", m)
+	n, _ := strconv.ParseInt("123", 10, 64) // base 10, up to 64 bits
+	fmt.Printf("n is type of %T\n", n)
+}
+
+func constants() {
+	// Constant declaration.
+	const noDelay time.Duration = 0
+	const timeout = 5 * time.Minute
+	fmt.Printf("%T %[1]v\n", noDelay)     // "time.Duration 0s"
+	fmt.Printf("%T %[1]v\n", timeout)     // "time.Duration 5m0s"
+	fmt.Printf("%T %[1]v\n", time.Minute) // "time.Duration 1m0s"
+
+	// When a sequence of constants is declared as a group, the right-hand side
+	// expression may be omitted for all but the first of the group, implying
+	// that the previous expression and its type should be used again.
+	const (
+		a = 1
+		b
+		c = 2
+		d
+	)
+	fmt.Println(a, b, c, d) // "1 1 2 2"
+
+	// The constant generator iota
+	// Types of this kind are often called enumerations, or enums for short.
+	type Weekday int
+
+	const (
+		Sunday Weekday = iota
+		Monday
+		Tuesday
+		Wednesday
+		Thursday
+		Friday
+		Saturday
+	)
+	fmt.Println("Tuesday =", Tuesday) // "2"
+
+	// We can use iota in more complex expressions too, as in this example from
+	// the net package where each of the lowest 5 bits of an unsigned integer
+	// is given a distinct name and boolean interpretation.
+	type Flags uint
+
+	const (
+		FlagUp           Flags = 1 << iota // is up
+		FlagBroadcast                      // supports broadcast access capability
+		FlagLoopback                       // is a loopback interface
+		FlagPointToPoint                   // belongs to a point-to-point link
+		FlagMulticast                      // supports multicast access capability
+	)
+	// 1 << iota, which evaluates to successive powers of two,
+	// each corresponding to a single bit.
+	fmt.Println("FlagBroadcast =", FlagBroadcast) // "2"
+	fmt.Println("FlagLoopback =", FlagLoopback)   // "4"
+
+	// As a more complex example of iota,
+	// this declaration names the powers of 1024.
+	const (
+		_   = 1 << (10 * iota)
+		KiB // 1024
+		MiB // 1048576
+		GiB // 1073741824
+		TiB // 1099511627776 (exceeds 1 << 32)
+		PiB // 1125899906842624
+		EiB // 1152921504606846976
+		ZiB // 1180591620717411303424 (exceeds 1 << 64)
+		YiB // 1208925819614629174706176
+
+	)
+	fmt.Printf("1 MiB = %d Byte\n", MiB)
+	fmt.Printf("1 TiB = %d Byte\n", TiB)
+
+	// Untyped constants
+	// The values ZiB and YiB in the example above are too big to store in any
+	// integer variable, but they are legitimate constants that may be used in
+	// expressions like this one.
+	fmt.Println(YiB / ZiB) // "1024"
+
+	// As another example, the floating-point constant math.Pi may be used
+	// wherever any floating-point or complex value is needed.
+	var p float32 = math.Pi
+	var q float64 = math.Pi
+	var r complex128 = math.Pi
+	fmt.Println("p, q, r = ", p, q, r)
+	const Pi64 float64 = math.Pi
+	var s float32 = float32(Pi64)
+	var t float64 = Pi64
+	var u complex128 = complex128(Pi64)
+	fmt.Println("s, t, u = ", s, t, u)
+
+	// Recall that `/` may represent integer or floating-point division
+	// depending on its operands. Consequently, the choice of literal may
+	// affect the result of a constant division expression.
+	var f float64 = 212
+	div1 := (f - 32) * 5 / 9
+	fmt.Printf("result1 = %v %[1]T\n", div1) // "100"; (f - 32) * 5 is a float64
+	div2 := 5 / 9 * (f - 32)
+	fmt.Printf("result2 = %v %[1]T\n", div2) // "0";  5/9 is an untyped integer, 0
+	div3 := 5.0 / 9.0 * (f - 32)
+	fmt.Printf("result3 = %v %[1]T\n", div3) // "100"; 5.0/9.0 is an untyped float
+
+	// Whether implicit or explicit, converting a constant from one type to
+	// another requires that the target type can represent the original value.
+	// Rounding is allowed for real and complex floating-point numbers.
+	const (
+		deadbeef = 0xdeadbeef        // untyped int with value 3735928559
+		i        = uint32(deadbeef)  // uint32 with value 3735928559
+		j        = float32(deadbeef) // float32 with value 3735928576 (rounded up)
+		k        = float64(deadbeef) // float64 with value 3735928559 (exact)
+		/*
+			l        = int32(deadbeef)   // compile error: constant overflows int32
+			m        = float64(1e309)    // compile error: constant overflows float64
+			n        = uint(-1)          // compile error: constant underflows uint
+		*/
+	)
+	fmt.Println("deadbeef, i, j, k = ", deadbeef, i, j, k)
 }
