@@ -66,6 +66,9 @@ func main() {
 
 	// =========================================================================
 	runeConversion()
+
+	// =========================================================================
+	convertStringToByteSlice()
 }
 
 func integerOverflow() {
@@ -386,4 +389,13 @@ func runeConversion() {
 	fmt.Println(string(0x4eac)) // "京"
 	// If the rune is invalid, the replacement character is substituted.
 	fmt.Println(string(1234567)) // "�"
+}
+
+// Strings can be converted to byte slices and back again.
+func convertStringToByteSlice() {
+	s := "abc"
+	b := []byte(s)
+	fmt.Println("byte slice =", b)
+	s2 := string(b)
+	fmt.Println("string =", s2)
 }
