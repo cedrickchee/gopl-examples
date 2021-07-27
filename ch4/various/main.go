@@ -1,7 +1,10 @@
 // Various code samples for chapter 4.
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 func main() {
 	// =========================================================================
@@ -33,6 +36,31 @@ func main() {
 
 	// =========================================================================
 	appendSlices()
+
+	// =========================================================================
+	s := []int{5, 6, 7, 8, 9}
+	fmt.Println(remove(s, 2)) // "[5 6 8 9]"
+	// remove2
+	s2 := []int{1, 2, 3, 4, 5}
+	fmt.Println(remove2(s2, 2)) // "[1 2 5 4]"
+
+	// =========================================================================
+	maps()
+
+	// =========================================================================
+	sortMap()
+
+	// =========================================================================
+	zeroValueMap()
+
+	// =========================================================================
+	mapLookup()
+
+	// =========================================================================
+	mapComparison()
+
+	// =========================================================================
+	mapWhoseKeysAreSlices()
 }
 
 func arrays() {
@@ -205,4 +233,164 @@ func appendSlices() {
 	x = append(x, 2, 3)
 	x = append(x, x...) // append the slice x
 	fmt.Println(x)      // "[1 2 3 1 2 3]"
+}
+
+// To remove an element from the middle of a slice, preserving the order of the
+// remaining elements, use copy to slide the higher-numbered elements down by
+// one to fill the gap.
+func remove(slice []int, i int) []int {
+	copy(slice[i:], slice[i+1:])
+	return slice[:len(slice)-1]
+}
+
+// Remove an element from the middle of a slice, don’t need to preserve the
+// order. We can just move the last element into the gap.
+func remove2(slice []int, i int) []int {
+	slice[i] = slice[len(slice)-1]
+	return slice[:len(slice)-1]
+}
+
+func maps() {
+	ages := make(map[string]int) // mapping from strings to ints
+	fmt.Println(ages)            // "map[]"
+
+	ages2 := map[string]int{
+		"alice":   31,
+		"charlie": 34,
+	}
+	fmt.Println(ages2) // "map[alice:31 charlie:34]"
+
+	// empty map
+	em := map[string]int{}
+	fmt.Printf("em value = %v, len = %d\n", em, len(em))
+
+	// Access map elements
+	em["orange"] = 2
+	em["apple"] = 3
+	fmt.Println("orange count =", em["orange"]) // "2"
+
+	// Remove map element
+	delete(em, "orange")    // remove element em["orange"]
+	fmt.Println("em =", em) // "em = map[apple:3]"
+
+	// A map element is not a variable, and we cannot take its address.
+	/*
+		_ = &em["apple"] // compile error: cannot take address of map element
+	*/
+
+	// Enumerate all the key/value pairs in the map.
+	fruits := map[string]int{"strawberry": 2, "lime": 5, "kiwi": 1}
+	for fruit, count := range fruits {
+		fmt.Printf("%s\t%d\n", fruit, count)
+	}
+}
+
+func sortMap() {
+	ages := map[string]int{
+		"bob":   30,
+		"alice": 28,
+		"john":  32,
+	}
+	// var names []string
+	// Replace the previous line with a more efficient slice. This allocate an
+	// array of the required size up front.
+	names := make([]string, 0, len(ages))
+	for name := range ages {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		fmt.Printf("%s\t%d\n", name, ages[name])
+	}
+}
+
+// The zero value for a map type is nil, that is,
+// a reference to no hash table at all.
+func zeroValueMap() {
+	var ages map[string]int
+	fmt.Println("ages is zero value map?", ages == nil) // "true"
+	fmt.Println("ages length is zero?", len(ages) == 0) // "true"
+
+	// Most operations on maps are safe to perform on a nil map reference.
+	// But storing to a nil map causes a panic.
+	/*
+		ages["carol"] = 21 // panic: assignment to entry in nil map
+	*/
+
+	// Accessing a map element by subscripting always yields a value.
+	fmt.Println(ages["carol"])
+}
+
+func mapLookup() {
+	// Know whether the element was really there or not.
+	// For example, if the element type is numeric, you might have to
+	// distinguish between a nonexistent element and an element that happens
+	// to have the value zero, using a test like this.
+	ages := map[string]int{
+		"bob":   30,
+		"alice": 28,
+		"john":  32,
+	}
+	age, ok := ages["arya"]
+	if !ok {
+		fmt.Println("arya is not a key in this map; age =", age)
+	}
+	// You’ll often see these two statements combined, like this.
+	if age, ok := ages["julia"]; !ok {
+		fmt.Println("julia is not a key in this map; age =", age)
+	}
+}
+
+func mapComparison() {
+	// Maps cannot be compared to each other; the only legal comparison
+	// is with nil.
+
+	// To test whether two maps contain the same keys and the same associated
+	// values, we must write a loop.
+	equal := func(x, y map[string]int) bool {
+		if len(x) != len(y) {
+			return false
+		}
+		for k, xv := range x {
+			if yv, ok := y[k]; !ok || yv != xv {
+				return false
+			}
+		}
+		return true
+	}
+
+	m1 := map[string]int{"A": 0}
+	m2 := map[string]int{"B": 42}
+	m3 := map[string]int{"A": 42}
+	m4 := map[string]int{"A": 0, "B": 42}
+	m5 := map[string]int{"A": 0, "B": 42}
+	c := equal(m1, m2)
+	fmt.Printf("m1 and m2 equal = %t\n", c)
+	c = equal(m1, m3)
+	fmt.Printf("m1 and m3 equal = %t\n", c)
+	c = equal(m4, m3)
+	fmt.Printf("m4 and m3 equal = %t\n", c)
+	c = equal(m4, m5)
+	fmt.Printf("m4 and m5 equal = %t\n", c)
+}
+
+func mapWhoseKeysAreSlices() {
+	var m = make(map[string]int)
+
+	// Helper function k that maps each key to a string, with the property
+	// that k(x) == k(y) if and only if we consider x and y equivalent.
+	k := func(list []string) string {
+		return fmt.Sprintf("%q", list)
+	}
+	Add := func(list []string) { m[k(list)]++ }
+	Count := func(list []string) int { return m[k(list)] }
+
+	kFruits := []string{"fruit", "apple", "orange"}
+	kNames := []string{"name", "alice", "john"}
+	Add(kFruits)
+	Add(kFruits)
+	Add(kNames)
+	fmt.Println(m)
+	nFruits := Count(kFruits)
+	fmt.Println("fruits count =", nFruits)
 }
