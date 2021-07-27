@@ -4,11 +4,33 @@ package main
 import "fmt"
 
 func main() {
+	// append
 	x := []int{1, 2, 3}
 	fmt.Println(x)
 	x2 := appendInt(x, 4)
 	fmt.Println(x)
 	fmt.Println(x2)
+
+	// growth
+	var p, q []int
+	for i := 0; i < 10; i++ {
+		q = appendInt(p, i)
+		fmt.Printf("%d cap=%d\t%v\n", i, cap(q), q)
+		p = q
+	}
+	/*
+		Output:
+		0 cap=1   [0]
+		1 cap=2   [0 1]
+		2 cap=4   [0 1 2]
+		3 cap=6   [0 1 2 3]
+		4 cap=6   [0 1 2 3 4]
+		5 cap=10  [0 1 2 3 4 5]
+		6 cap=10  [0 1 2 3 4 5 6]
+		7 cap=10  [0 1 2 3 4 5 6 7]
+		8 cap=10  [0 1 2 3 4 5 6 7 8]
+		9 cap=18  [0 1 2 3 4 5 6 7 8 9]
+	*/
 }
 
 func appendInt(x []int, y int) []int {
