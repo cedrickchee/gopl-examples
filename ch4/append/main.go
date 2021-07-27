@@ -10,6 +10,10 @@ func main() {
 	x2 := appendInt(x, 4)
 	fmt.Println(x)
 	fmt.Println(x2)
+	x2 = appendInt(x2, 5, 6)
+	fmt.Println(x2)
+	x2 = appendInt(x2, []int{7, 8}...)
+	fmt.Println(x2)
 
 	// growth
 	var p, q []int
@@ -33,9 +37,13 @@ func main() {
 	*/
 }
 
-func appendInt(x []int, y int) []int {
+func appendInt(x []int, y ...int) []int {
+	// The ellipsis ""..."" in the declaration of appendInt makes the
+	// function variadic: it accepts any number of final arguments.
+
 	var z []int
-	zlen := len(x) + 1
+	zlen := len(x) + len(y)
+	// expand z to at least zlen
 	if zlen < cap(x) {
 		// There is room to grow. Extend the slice.
 		z = x[:zlen]
@@ -49,6 +57,7 @@ func appendInt(x []int, y int) []int {
 		z = make([]int, zlen, zcap)
 		copy(z, x) // a built-in function; see text
 	}
-	z[len(x)] = y
+
+	copy(z[len(x):], y)
 	return z
 }
