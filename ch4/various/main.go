@@ -30,6 +30,9 @@ func main() {
 
 	// =========================================================================
 	nilSlice()
+
+	// =========================================================================
+	appendSlices()
 }
 
 func arrays() {
@@ -183,4 +186,23 @@ func nilSlice() {
 
 	// So, if you need to test whether a slice is empty, use len(s) == 0,
 	// not s == nil .
+}
+
+func appendSlices() {
+	var runes []rune
+	for _, r := range "Hello, 世界" {
+		runes = append(runes, r)
+	}
+	fmt.Printf("%q\n", runes) // "['H' 'e' 'l' 'l' 'o' ',' ' ' '世' '界']"
+
+	// This specific problem is more conveniently solved by using the built-in
+	// conversion.
+	fmt.Printf("%q\n", []rune("Hello, 世界"))
+
+	// Add more than one new element, or even a whole slice of them.
+	var x []int
+	x = append(x, 1)
+	x = append(x, 2, 3)
+	x = append(x, x...) // append the slice x
+	fmt.Println(x)      // "[1 2 3 1 2 3]"
 }
