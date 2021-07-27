@@ -24,6 +24,12 @@ func main() {
 
 	// =========================================================================
 	arrayAndSlices()
+
+	// =========================================================================
+	compareSlices()
+
+	// =========================================================================
+	nilSlice()
 }
 
 func arrays() {
@@ -110,4 +116,71 @@ func arrayAndSlices() {
 	// fmt.Println(summer[:20])    // panic: runtime error: slice bounds out of range [:20] with capacity 7
 	endlessSummer := summer[:5]                   // extend a slice (within capacity)
 	fmt.Println("endlessSummer =", endlessSummer) // "[June July August September October]"
+}
+
+// Unlike arrays, slices are not comparable, so we cannot use == to test whether
+// two slices contain the same elements.
+// We must do the comparison ourselves.
+func compareSlices() {
+	// comparing two slices of string
+	equal := func(x, y []string) bool {
+		// Deep equality test.
+		if len(x) != len(y) {
+			return false
+		}
+		for i := range x {
+			if x[i] != y[i] {
+				return false
+			}
+		}
+		return true
+	}
+
+	a := []string{"apple", "orange", "lemon"}
+	b := []string{"apple", "orange", "lemon"}
+	c := []string{"orange", "lemon", "mango"}
+	fmt.Println(equal(a, b)) // "true"
+	fmt.Println(equal(a, c)) // "false"
+}
+
+func nilSlice() {
+	// Slices comparison
+
+	// In Go, the safest choice is to disallow slice comparisons altogether.
+	// The only legal slice comparison is against nil.
+
+	// The zero value of a slice type is nil.
+	// A nil slice has no underlying array. The nil slice has length and
+	// capacity zero, but there are also non-nil slices of length and
+	// capacity zero, such as `[]int{}` or `make([]int, 3)[3:]`.
+	var s []int
+	if s == nil {
+		fmt.Println("s is nil slice")
+		fmt.Printf("s len = %d, cap = %d\n", len(s), cap(s))
+	}
+	p := []int{}
+	if p != nil {
+		fmt.Println("p is non-nil slice")
+		fmt.Printf("p len = %d, cap = %d\n", len(p), cap(p))
+	}
+	q := make([]int, 3)[3:]
+	if q != nil {
+		fmt.Println("q is non-nil slice")
+		fmt.Printf("q len = %d, cap = %d\n", len(q), cap(q))
+	}
+
+	// As with any type that can have `nil` values, the nil value of a
+	// particular slice type can be written using a conversion expression
+	// such as `[]int(nil)`.
+	var r []int
+	fmt.Printf("r = %v, len = %d, is nil = %t\n", r, len(r), (r == nil)) // "r = [], len = 0, is nil = true"
+	r = nil
+	fmt.Printf("r = %v, len = %d, is nil = %t\n", r, len(r), (r == nil)) // "r = [], len = 0, is nil = true"
+	r = []int(nil)
+	fmt.Printf("r = %v, len = %d, is nil = %t\n", r, len(r), (r == nil)) // "r = [], len = 0, is nil = true"
+	r = []int{}
+	fmt.Printf("r = %v, len = %d, is nil = %t\n", r, len(r), (r == nil)) // "r = [], len = 0, is nil = false"
+
+	// So, if you need to test whether a slice is empty, use len(s) == 0,
+	// not s == nil .
 }
