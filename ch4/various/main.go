@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"sort"
+	"time"
 )
 
 func main() {
@@ -61,6 +62,21 @@ func main() {
 
 	// =========================================================================
 	mapWhoseKeysAreSlices()
+
+	// =========================================================================
+	structs()
+
+	// =========================================================================
+	emptyStruct()
+
+	// =========================================================================
+	structLiterals()
+
+	// =========================================================================
+	structValues()
+
+	// =========================================================================
+	comparingStructs()
 }
 
 func arrays() {
@@ -393,4 +409,67 @@ func mapWhoseKeysAreSlices() {
 	fmt.Println(m)
 	nFruits := Count(kFruits)
 	fmt.Println("fruits count =", nFruits)
+}
+
+func structs() {
+	// Declarations
+	type Employee struct {
+		ID        int
+		Name      string
+		Address   string
+		DoB       time.Time
+		Position  string
+		Salary    int
+		ManagerID int
+	}
+
+	var dilbert Employee
+	fmt.Printf("%v\n", dilbert)
+}
+
+func emptyStruct() {
+	// struct type with no fields is called the empty struct, written struct{}.
+	// It has size zero.
+	seen := make(map[string]struct{}) // set of strings
+	// ...
+	s := "aKey"
+	if _, ok := seen[s]; !ok {
+		seen[s] = struct{}{}
+		// ...first time seeing s...
+	}
+}
+
+func structLiterals() {
+	type Point struct{ X, Y int }
+	p := Point{1, 2}
+	fmt.Println("Point struct p =", p)
+}
+
+func structValues() {
+	type Point struct{ X, Y int }
+
+	// Because structs are so commonly dealt with through pointers, it’s
+	// possible to use this shorthand notation to create and initialize a struct
+	// variable and obtain its address.
+	pp := &Point{1, 2}
+	fmt.Println(pp) // "&{1 2}"
+	// It is exactly equivalent to
+	p := new(Point)
+	*p = Point{1, 2}
+	fmt.Println(p) // "&{1 2}"
+}
+
+func comparingStructs() {
+	// If all the fields of a struct are comparable, the struct itself is
+	// comparable.
+
+	// Comparable struct types, like other comparable types, may be used as the
+	// key type of a map.
+	type address struct {
+		hostname string
+		port     int
+	}
+	hits := make(map[address]int)
+	hits[address{"golang.org", 443}]++
+	fmt.Println("hits =", hits)
 }
