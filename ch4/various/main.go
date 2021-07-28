@@ -77,6 +77,9 @@ func main() {
 
 	// =========================================================================
 	comparingStructs()
+
+	// =========================================================================
+	structEmbeddingAnonFields()
 }
 
 func arrays() {
@@ -472,4 +475,90 @@ func comparingStructs() {
 	hits := make(map[address]int)
 	hits[address{"golang.org", 443}]++
 	fmt.Println("hits =", hits)
+}
+
+// Go's unusual struct embedding mechanism lets us use one named struct type as
+// an _anonymous_ field of another struct type, providing a convenient syntactic
+// shortcut so that a simple dot expression like `x.f` can stand for a chain of
+// fields like `x.d.e.f`.
+func structEmbeddingAnonFields() {
+	// Consider a 2-D drawing program that provides a library of shapes, such as
+	// rectangles, ellipses, stars, and wheels. Here are two of the types it
+	// might define.
+
+	// type Circle struct {
+	// 	X, Y, Radius int
+	// }
+
+	// type Wheel struct {
+	// 	X, Y, Radius, Spokes int
+	// }
+	// A Circle has fields for the X and Y coordinates of its center, and a
+	// Radius. A Wheel has all the features of a Circle, plus Spokes, the number
+	// of inscribed radial spokes.
+
+	// var w Wheel
+	// w.X = 8
+	// w.Y = 8
+	// w.Radius = 5
+	// w.Spokes = 20
+
+	// As the set of shapes grows, we’re bound to notice similarities and
+	// repetition among them, so it may be convenient to factor out their common
+	// parts.
+	// type Point struct {
+	// 	X, Y int
+	// }
+
+	// type Circle struct {
+	// 	Center Point
+	// 	Radius int
+	// }
+
+	// type Wheel struct {
+	// 	Circle Circle
+	// 	Spokes int
+	// }
+
+	// The application may be clearer for it, but this change makes accessing
+	// the fields of a Wheel more verbose:
+	// var w Wheel
+	// w.Circle.Center.X = 8
+	// w.Circle.Center.Y = 8
+	// w.Circle.Radius = 5
+	// w.Spokes = 20
+
+	// Go lets us declare a field with a type but no name; such fields are
+	// called _anonymous fields_. The type of the field must be a named type or
+	// a pointer to a named type. Below, `Circle` and `Wheel` have one anonymous
+	// field each. We say that a `Point` is embedded within `Circle`, and a
+	// `Circle` is embedded within `Wheel`.
+	type Point struct {
+		X, Y int
+	}
+
+	type Circle struct {
+		Point
+		Radius int
+	}
+
+	type Wheel struct {
+		Circle
+		Spokes int
+	}
+
+	// Thanks to embedding, we can refer to the names at the leaves of the
+	// implicit tree without giving the intervening names:
+	var w Wheel
+	w.X = 8      // equivalent to w.Circle.Point.X = 8
+	w.Y = 8      // equivalent to w.Circle.Point.Y = 8
+	w.Radius = 5 // equivalent to w.Circle.Radius = 5
+	w.Spokes = 20
+
+	// Unfortunately, there’s no corresponding shorthand for the struct literal
+	// syntax, so neither of these will compile:
+	/*
+		w = Wheel{8, 8, 5, 20}                       // compile error: unknown fields
+		w = Wheel{X: 8, Y: 8, Radius: 5, Spokes: 20} // compile error: unknown fields
+	*/
 }
