@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+func init() {
+	log.SetPrefix("WAIT: ")
+	log.SetFlags(log.Ldate | log.Lmicroseconds)
+}
+
 // WaitForServer attempts to contact the server of a URL.
 // It tries for one minute using exponential back-off.
 // It reports an error if all attempts fail.
@@ -33,8 +38,7 @@ func main() {
 	}
 	url := os.Args[1]
 	if err := WaitForServer(url); err != nil {
-		fmt.Fprintf(os.Stderr, "Site is down: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Site is down: %v\n", err)
 	}
 }
 
