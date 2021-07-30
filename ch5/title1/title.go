@@ -1,3 +1,4 @@
+// Title1 prints the title of an HTML document specified by a URL.
 package main
 
 import (
@@ -8,8 +9,6 @@ import (
 
 	"golang.org/x/net/html"
 )
-
-// Title1 prints the title of an HTML document specified by a URL.
 
 // Copied from gopl.io/ch5/outline2.
 func forEachNode(n *html.Node, pre, post func(n *html.Node)) {
@@ -38,6 +37,7 @@ func title(url string) error {
 	}
 
 	doc, err := html.Parse(resp.Body)
+	resp.Body.Close()
 	if err != nil {
 		return fmt.Errorf("parsing %s as HTML: %v", url, err)
 	}
@@ -70,4 +70,7 @@ Effective Go - The Go Programming Language
 
 $ go run gopl.io/ch5/title1 https://github.com
 GitHub: Where the world builds software · GitHub
+
+$ go run gopl.io/ch5/title1 https://golang.org/doc/gopher/frontpage.png
+title: https://golang.org/doc/gopher/frontpage.png has type image/png, not text/html
 */
