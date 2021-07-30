@@ -24,6 +24,18 @@ func main() {
 
 	// =========================================================================
 	functionValuesBehavior()
+
+	// =========================================================================
+	variadicFunctions()
+
+	// =========================================================================
+	deferFunctionCalls()
+
+	// =========================================================================
+	dangerousDeferFuncExec()
+
+	// =========================================================================
+	fixDangerousDeferFuncExec()
 }
 
 func declarations() {
@@ -120,3 +132,125 @@ func functionValuesBehavior() {
 	fmt.Println(strings.Map(add1, "Admix"))    // "Benjy"
 }
 func add1(r rune) rune { return r + 1 }
+
+func f(vals ...int) {}
+func g(vals []int)  {}
+func variadicFunctions() {
+	fmt.Printf("%T\n", f) // "func(...int)"
+	fmt.Printf("%T\n", g) // "func([]int)"
+}
+
+func double(x int) (result int) {
+	// By naming its result variable and adding a defer statement, we can make
+	// the function print its arguments and results each time it is called.
+	defer func() { fmt.Printf("double(%d) = %d\n", x, result) }()
+	return x + x
+}
+func triple(x int) (result int) {
+	// A deferred anonymous function can even change the values that the
+	// enclosing function returns to its caller:
+	defer func() { result += x }()
+	return double(x)
+}
+func deferFunctionCalls() {
+	_ = double(4)
+	// Output:
+	// "double(4) = 8"
+
+	fmt.Println(triple(4)) // "12"
+}
+
+func readFiles(filenames []string) error {
+	// Because deferred functions aren’t executed until the very end of a
+	// function’s execution, a defer statement in a loop deserves extra
+	// scrutiny. The code below could run out of file descriptors since no file
+	// will be closed until all files have been processed:
+
+	fmt.Println("dangerously reading files...")
+
+	for _, filename := range filenames {
+		fmt.Printf("reading filename: %s\n", filename)
+
+		f, err := os.Open(filename)
+		if err != nil {
+			return err
+		}
+		defer f.Close() // NOTE: risky; could run out of file descriptors
+
+		defer func() { fmt.Println("file close") }()
+		// ...process f...
+	}
+
+	defer func() { fmt.Println("done reading files") }()
+
+	return nil
+}
+func dangerousDeferFuncExec() {
+	filenames := []string{"bin/out.gif", "bin/test.txt", "bin/test2.txt"}
+	err := readFiles(filenames)
+	if err != nil {
+		fmt.Printf("dangerousDeferFuncExec: %v", err)
+	}
+	/*
+		Output (notice the sequence of the log messages):
+
+		dangerously reading files...
+		reading filename: bin/out.gif
+		reading filename: bin/test.txt
+		reading filename: bin/test2.txt
+		done reading files
+		file close
+		file close
+		file close
+	*/
+}
+
+func fixDangerousDeferFuncExec() {
+	// One solution is to move the loop body, including the `defer` statement,
+	// into another function that is called on each iteration.
+
+	filenames := []string{"bin/out.gif", "bin/test.txt", "bin/test2.txt"}
+	err := safeReadFiles(filenames)
+	if err != nil {
+		fmt.Printf("fixDangerousDeferFuncExec: %v", err)
+	}
+	/*
+		Output (notice the sequence of the log messages):
+
+		safely reading files...
+		reading filename: bin/out.gif
+		file close
+		reading filename: bin/test.txt
+		file close
+		reading filename: bin/test2.txt
+		file close
+		done reading files
+	*/
+}
+func safeReadFiles(filenames []string) error {
+	fmt.Println("safely reading files...")
+
+	for _, filename := range filenames {
+		fmt.Printf("reading filename: %s\n", filename)
+
+		if err := doFile(filename); err != nil {
+			return err
+		}
+	}
+
+	defer func() { fmt.Println("done reading files") }()
+
+	return nil
+}
+func doFile(filename string) error {
+	f, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	defer func() { fmt.Println("file close") }()
+	// ...process f...
+
+	return nil
+}
