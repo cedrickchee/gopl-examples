@@ -6,7 +6,6 @@ import (
 )
 
 func (v Var) Check(vars map[Var]bool) error {
-	fmt.Println("check var")
 	vars[v] = true
 	return nil
 }
