@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -36,6 +37,21 @@ func main() {
 
 	// =========================================================================
 	assertValueOfTypeSatisfyInterface()
+
+	// =========================================================================
+	interfaceValues()
+
+	// =========================================================================
+	compareInterfaceValues()
+
+	// =========================================================================
+	caveatInterfaceContainingNilPointer()
+
+	// =========================================================================
+	sortingWithSortInterface()
+
+	// =========================================================================
+	testingWhetherASequenceIsSorted()
 }
 
 func interfacesAsContracts() {
@@ -159,4 +175,155 @@ func assertValueOfTypeSatisfyInterface() {
 	// this more frugal variant:
 	var _ io.Writer = (*bytes.Buffer)(nil)
 	// fmt.Printf("v type = %T, value = %[1]v\n", v) // v type = *bytes.Buffer, value = <nil>
+}
+
+func interfaceValues() {
+	var w io.Writer
+	fmt.Printf("interface value w is nil = %t\n", w == nil)
+	// w.Write([]byte("hello")) // panic: runtime error: invalid memory address or nil pointer dereference
+
+	var x io.Writer
+	// The statement assigns a value of type `*os.File` to `x`:
+	// This assignment involves an implicit conversion from a concrete type to
+	// an interface type.
+	//
+	// The interface value’s dynamic type is set to the type descriptor for the
+	// pointer type `*os.File`, and its dynamic value holds a copy of
+	// `os.Stdout`, which is a pointer to the `os.File` variable representing
+	// the standard output of the process.
+	x = os.Stdout
+	// Calling the `Write` method on an interface value containing an `*os.File`
+	// pointer causes the `(*os.File).Write` method to be called.
+	x.Write([]byte("hello")) // "hello"
+	// The effect is as if we had made this call directly:
+	os.Stdout.Write([]byte("hello")) // "hello"
+
+	var z io.Writer
+	z = new(bytes.Buffer)
+	// The dynamic type is now `*bytes.Buffer` and the dynamic value is a
+	// pointer to the newly allocated buffer.
+	z.Write([]byte("hello")) // writes "hello" to the bytes.Buffer
+	// This time, the type descriptor is `*bytes.Buffer`, so the
+	// `(*bytes.Buffer).Write` method is called, with the address of the buffer
+	// as the value of the receiver parameter. The call appends "hello" to the
+	// buffer.
+
+	fmt.Printf("\ninterface value z is not nil = %t\n", z != nil)
+	// Assigns nil to the interface value.
+	z = nil
+	// This resets both its components (dynamic type and dynamic value) to
+	// `nil`, restoring `w` to the same state as when it was declared.
+	fmt.Printf("interface value z is nil = %t\n", z == nil)
+
+	// An interface value can hold arbitrarily large dynamic values.
+	// Create an interface value from `time.Time` type.
+	var q interface{} = time.Now() // an interface value holding a time.Time struct (a large type)
+	fmt.Printf("interface value q is not nil = %t\n", q != nil)
+}
+
+func compareInterfaceValues() {
+	// Interface values may be compared using `==` and `!=`. Two interface
+	// values are equal if both are `nil`, or if their dynamic types are
+	// identical and their dynamic values are equal.
+
+	// However, if two interface values are compared and have the same dynamic
+	// type, but that type is not comparable (a slice, for instance), then the
+	// comparison fails with a panic:
+	var x interface{} = []int{1, 2, 3}
+	fmt.Printf("interface value x is not nil = %t\n", x != nil)
+	/*
+		fmt.Println(x == x) // panic: runtime error: comparing uncomparable type []int
+	*/
+
+	// When handling errors, or during debugging, it is often helpful to report
+	// the dynamic type of an interface value.
+	var w io.Writer
+	fmt.Printf("%T\n", w) // "<nil>"
+
+	w = os.Stdout
+	fmt.Printf("%T\n", w) // "*os.File"
+
+	w = new(bytes.Buffer)
+	fmt.Printf("%T\n", w) // "*bytes.Buffer"
+}
+
+// With `debug` set to `true`, the `collectOutput` function collects the output
+// of the function `f` in a `bytes.Buffer`.
+const debug = true
+
+func collectOutput() {
+	var buf *bytes.Buffer
+	if debug {
+		buf = new(bytes.Buffer) //  enable collection of output
+	}
+	// fmt.Println("buf value =", buf) // "<nil>" if debug set to false, empty of debug set to true.
+	f(buf) // NOTE: subtly incorrect! Solution: change the type of buf to io.Writer (var buf io.Writer)
+	if debug {
+		// ...use buf...
+	}
+}
+
+// If out is non-nil, output will be written to it.
+func f(out io.Writer) {
+	// ...do something...
+	if out != nil {
+		out.Write([]byte("done!\n"))
+	}
+	// We might expect that changing debug to false would disable the collection
+	// of the output, but in fact it causes the program to panic during the
+	// out.Write call. -- panic: invalid memory address or nil pointer
+	// dereference
+}
+func caveatInterfaceContainingNilPointer() {
+	// An interface containing a nil pointer is non-nil.
+	//
+	// A nil interface value, which contains no value at all, is not the same as
+	// an interface value containing a pointer that happens to be nil. This
+	// subtle distinction creates a trap into which every Go programmer has
+	// stumbled.
+	collectOutput()
+}
+
+// An in-place sort algorithm needs three things—the length of the sequence, a
+// means of comparing two elements, and a way to swap two elements—so they are
+// the three methods of `sort.Interface`.
+//
+// To sort any sequence, we need to define a type that implements these three
+// methods, then apply `sort.Sort` to an instance of that type. As perhaps the
+// simplest example, consider sorting a slice of strings. The new type
+// `StringSlice` and its `Len`, `Less`, and `Swap` methods are shown below.
+type StringSlice []string
+
+func (p StringSlice) Len() int           { return len(p) }
+func (p StringSlice) Less(i, j int) bool { return p[i] < p[j] }
+func (p StringSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
+// Sorting with sort.Interface
+func sortingWithSortInterface() {
+	// Now we can sort a slice of strings, names, by converting the slice to a
+	// `StringSlice` like this:
+	names := []string{"John", "Bob", "Alice", "Tracy"}
+	// The conversion yields a slice value with the same length, capacity, and
+	// underlying array as `names` but with a type that has the three methods
+	// required for sorting.
+	sort.Sort(StringSlice(names))
+	fmt.Printf("%#v\n", names) // "[]string{"Alice", "Bob", "John", "Tracy"}"
+
+	// Sorting a slice of strings is so common that the `sort` package provides
+	// the `StringSlice` type, as well as a function called `Strings` so that
+	// the call above can be simplified to `sort.Strings(names)`.
+	s := []string{"Go", "Bravo", "Gopher", "Alpha", "Grin", "Delta"}
+	sort.Strings(s)
+	fmt.Println(s)
+}
+
+func testingWhetherASequenceIsSorted() {
+	values := []int{3, 1, 4, 1}
+	fmt.Println(sort.IntsAreSorted(values)) // "false"
+	sort.Ints(values)
+	fmt.Println(values)                     // "[1 1 3 4]"
+	fmt.Println(sort.IntsAreSorted(values)) // "true"
+	sort.Sort(sort.Reverse(sort.IntSlice(values)))
+	fmt.Println(values)                     // "[4 3 1 1]"
+	fmt.Println(sort.IntsAreSorted(values)) // "false"
 }
