@@ -3,12 +3,14 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"reflect"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"gopl.io/ch6/intset"
@@ -52,6 +54,9 @@ func main() {
 
 	// =========================================================================
 	testingWhetherASequenceIsSorted()
+
+	// =========================================================================
+	errorInterface()
 }
 
 func interfacesAsContracts() {
@@ -326,4 +331,23 @@ func testingWhetherASequenceIsSorted() {
 	sort.Sort(sort.Reverse(sort.IntSlice(values)))
 	fmt.Println(values)                     // "[4 3 1 1]"
 	fmt.Println(sort.IntsAreSorted(values)) // "false"
+}
+
+func errorInterface() {
+	// Every call to `New` allocates a distinct `error` instance that is equal
+	// to no other. We would not want a distinguished error such as `io.EOF` to
+	// compare equal to one that merely happened to have the same message.
+	fmt.Println("error compare =", errors.New("EOF") == errors.New("EOF")) // "false"
+
+	// Although `*errorString` may be the simplest type of `error`, it is far
+	// from the only one. For example, the `syscall` package provides Go’s
+	// low-level system call API. On many platforms, it defines a numeric type
+	// `Errno` that satisfies `error`, and on Unix platforms, `Errno`’s `Error`
+	// method does a lookup in a table of strings.
+	//
+	// The following statement creates an interface value holding the `Errno`
+	// value 2, signifying the POSIX `ENOENT` condition:
+	var err error = syscall.Errno(2)
+	fmt.Println(err.Error()) // "no such file or directory"
+	fmt.Println(err)         // "no such file or directory"
 }
