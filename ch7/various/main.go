@@ -63,6 +63,9 @@ func main() {
 
 	// =========================================================================
 	discriminatingErrorsWithTypeAssertions()
+
+	// =========================================================================
+	typeSwitches()
 }
 
 func interfacesAsContracts() {
@@ -447,4 +450,39 @@ func discriminatingErrorsWithTypeAssertions() {
 	// distinguished error `os.ErrNotExist`, or is a `*PathError` whose
 	// underlying error is one of those two.
 	fmt.Println("os.IsNotExist(err) =", os.IsNotExist(err)) // "true"
+}
+
+// func listTracks(db sql.DB, artist string, minYear, maxYear int) {
+// 	result, err := db.Exec(
+// 		"SELECT * FROM tracks WHERE artist = ? AND ? <= year AND year <= ?",
+// 		artist, minYear, maxYear)
+// 	// ...
+// }
+
+func sqlQuote(x interface{}) string {
+	switch x := x.(type) {
+	case nil:
+		return "NULL"
+	case int, uint:
+		return fmt.Sprintf("%d", x) // x has type interface{} here.
+	case bool:
+		if x {
+			return "TRUE"
+		}
+		return "FALSE"
+	case string:
+		// return sqlQuoteString(s) // (not shown)
+		return fmt.Sprintf("%q", x)
+	default:
+		panic(fmt.Sprintf("unexpected type %T: %v", x, x))
+	}
+}
+func typeSwitches() {
+	// listTracks()
+
+	fmt.Println(sqlQuote(2020))
+	fmt.Println(sqlQuote("john"))
+	fmt.Println(sqlQuote(false))
+	fmt.Println(sqlQuote(nil))
+	// fmt.Println(sqlQuote(1.50)) // panic: unexpected type float64: 1.5
 }
