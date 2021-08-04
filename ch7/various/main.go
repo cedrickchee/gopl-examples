@@ -57,6 +57,12 @@ func main() {
 
 	// =========================================================================
 	errorInterface()
+
+	// =========================================================================
+	typeAssertions()
+
+	// =========================================================================
+	discriminatingErrorsWithTypeAssertions()
 }
 
 func interfacesAsContracts() {
@@ -350,4 +356,95 @@ func errorInterface() {
 	var err error = syscall.Errno(2)
 	fmt.Println(err.Error()) // "no such file or directory"
 	fmt.Println(err)         // "no such file or directory"
+}
+
+type ByteCounter int
+
+func (c *ByteCounter) Write(p []byte) (int, error) {
+	*c += ByteCounter(len(p)) // convert int to ByteCounter
+	return len(p), nil
+}
+func typeAssertions() {
+	// A type assertion is an operation applied to an interface value.
+	// Syntactically, it looks like `x.(T)`, where `x` is an expression of an
+	// interface type and `T` is a type, called the "asserted" type. A type
+	// assertion checks that the dynamic type of its operand matches the
+	// asserted type.
+	//
+	// There are two possibilities. First, if the asserted type `T` is a
+	// concrete type, then the type assertion checks whether `x`’s dynamic type
+	// is identical to `T`. If this check succeeds, the result of the type
+	// assertion is `x`’s dynamic value, whose type is of course `T`. In other
+	// words, a type assertion to a concrete type extracts the concrete value
+	// from its operand. If the check fails, then the operation panics. For
+	// example:
+	{
+
+		var w io.Writer
+		w = os.Stdout
+		fmt.Printf("w type = %T\n", w) // "*os.File"
+		f := w.(*os.File)
+		fmt.Printf("f type = %T\n", f) // "*os.File"
+		// c := w.(*bytes.Buffer) // panic: interface conversion: io.Writer is
+		// *os.File, not *bytes.Buffer
+	}
+
+	// After the first type assertion below, both `w` and `rw` hold `os.Stdout`
+	// so each has a dynamic type of `*os.File`, but `w`, an `io.Writer`,
+	// exposes only the file’s `Write` method, whereas `rw` exposes its `Read`
+	// method too.
+	{
+		var w io.Writer
+		w = os.Stdout
+		rw := w.(io.ReadWriter) // success: *os.File has both Read and Write
+		// Print(rw)
+		fmt.Printf("rw type = %T\n", rw) // "*os.File"
+
+		w = new(ByteCounter)
+		Print(w) // "type *main.ByteCounter"
+		// rw = w.(io.ReadWriter) // panic: interface conversion: *main.ByteCounter is not io.ReadWriter: missing method Read
+
+		// No matter what type was asserted, if the operand is a nil interface
+		// value, the type assertion fails. A type assertion to a less restrictive
+		// interface type (one with fewer methods) is rarely needed, as it behaves
+		// just like an assignment, except in the nil case.
+		w = rw             // io.ReadWriter is assignable to io.Writer
+		w = rw.(io.Writer) // fails only if rw == nil
+		fmt.Println("***** w = rw.(io.Writer) *****")
+		Print(w)
+	}
+
+	// Often we’re not sure of the dynamic type of an interface value, and we’ d
+	// like to test whether it is some particular type. If the type assertion
+	// appears in an assignment in which two results are expected, such as the
+	// following declarations, the operation does not panic on failure but
+	// instead returns an additional second result, a boolean indicating
+	// success:
+	{
+		var w io.Writer = os.Stdout
+		f, ok := w.(*os.File)                                        // success: ok, f == os.Stdout
+		fmt.Printf("f type = %T, ok = %t, f value = %[1]v\n", f, ok) // "f type = *os.File, ok = true, f value = &{0xc0000bc060}"
+		b, ok := w.(*bytes.Buffer)                                   // failure: !ok, b == nil
+		fmt.Printf("b type = %T, ok = %t, b value = %[1]v\n", b, ok) // "b type = *bytes.Buffer, ok = false, b value = <nil>"
+
+		// The second result is conventionally assigned to a variable named
+		// `ok`. If the operation failed, `ok` is false, and the first result is
+		// equal to the zero value of the asserted type, which in this example
+		// is a `nil` `*bytes.Buffer`.
+	}
+}
+
+// Discriminating Errors with Type Assertions.
+func discriminatingErrorsWithTypeAssertions() {
+	_, err := os.Open("/no/such/file")
+	fmt.Println(err) // "open /no/such/file: no such file or directory"
+	fmt.Printf("%#v\n", err)
+	// Output:
+	// &fs.PathError{Op:"open", Path:"/no/such/file", Err:0x2}
+
+	// How the helper functions work. For example, `IsNotExist`, shown below,
+	// reports whether an error is equal to `syscall.ENOENT` or to the
+	// distinguished error `os.ErrNotExist`, or is a `*PathError` whose
+	// underlying error is one of those two.
+	fmt.Println("os.IsNotExist(err) =", os.IsNotExist(err)) // "true"
 }
