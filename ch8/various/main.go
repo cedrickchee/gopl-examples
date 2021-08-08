@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -15,6 +16,15 @@ func main() {
 
 	// =========================================================================
 	bufferedChannels()
+
+	// =========================================================================
+	multiplexingWithSelect()
+
+	// =========================================================================
+	tickerPattern()
+
+	// =========================================================================
+	pollingChannel()
 }
 
 func f(name string) {
@@ -138,4 +148,88 @@ func request(hostname string) (response string) {
 	time.Sleep(1 * time.Second)
 	response = hostname
 	return
+}
+
+func multiplexingWithSelect() {
+	// A `select` waits until a communication for some case is ready to proceed.
+	// It then performs that communication and executes the case’s associated
+	// statements; the other communications do not happen. A `select` with no
+	// cases, `select{}`, waits forever.
+
+	// The example below is more subtle. The channel `ch`, whose buffer size is
+	// 1, is alternately empty then full, so only one of the cases can proceed,
+	// either the send when `i` is even, or the receive when `i` is odd. It
+	// always prints `0 2 4 6 8`.
+	ch := make(chan int, 1)
+	for i := 0; i < 10; i++ {
+		select {
+		case x := <-ch:
+			fmt.Println(x) // "0" "2" "4" "6" "8"
+		case ch <- i:
+		}
+	}
+
+	// If multiple cases are ready, `select` picks one at random, which ensures
+	// that every channel has an equal chance of being selected. Increasing the
+	// buffer size of the previous example makes its output nondeterministic,
+	// because when the buffer is neither full nor empty, the select statement
+	// figuratively tosses a coin.
+}
+
+func tickerPattern() {
+	// A solution for the ticker goroutine leak.
+
+	// The `Tick` function is convenient, but it’s appropriate only when the
+	// ticks will be needed throughout the lifetime of the application.
+	// Otherwise, we should use this pattern:
+	ticker := time.NewTicker(1 * time.Second)
+	<-ticker.C // receive from the ticker's channel
+
+	// Stop the ticker to release associated resources.
+	ticker.Stop() // cause the ticker's goroutine to terminate
+
+	// My example:
+	abort := make(chan struct{})
+	go func() {
+		os.Stdin.Read(make([]byte, 1)) // read a single byte
+		abort <- struct{}{}
+	}()
+	fmt.Println("Commencing countdown.  Press return to abort.")
+	cnttick := time.NewTicker(1 * time.Second)
+	for countdown := 10; countdown > 0; countdown-- {
+		fmt.Println(countdown)
+		// The select statement below causes each iteration of the loop to wait
+		// up to 1 second for an abort, but no longer.
+		select {
+		case <-cnttick.C:
+			// Do nothing.
+		case <-abort:
+			fmt.Println("Launch aborted!")
+			cnttick.Stop()
+			return
+		}
+	}
+	launch := func() { fmt.Println("Lift off!") }
+	launch()
+}
+
+func pollingChannel() {
+	// Sometimes we want to try to send or receive on a channel but avoid
+	// blocking if the channel is not ready—a _non-blocking_ communication. A
+	// select statement can do that too. A `select` may have a `default`, which
+	// specifies what to do when none of the other communications can proceed
+	// immediately.
+
+	// The select statement below receives a value from the `abort` channel if
+	// there is one to receive; otherwise it does nothing. This is a
+	// non-blocking receive operation; doing it repeatedly is called _polling_ a
+	// channel.
+	abort := make(chan struct{})
+	select {
+	case <-abort:
+		fmt.Println("Launch aborted!")
+		return
+	default:
+		// do nothing
+	}
 }
