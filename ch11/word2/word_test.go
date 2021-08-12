@@ -1,6 +1,9 @@
 package word
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestIsPalindrome(t *testing.T) {
 	var tests = []struct {
@@ -90,3 +93,27 @@ ok   gopl.io/ch11/word2 1.493s
 
 // Consolidating the allocations in a single call to `make` eliminated 75% of
 // the allocations and halved the quantity of allocated memory.
+
+func ExampleIsPalindrome() {
+	fmt.Println(IsPalindrome("A man, a plan, a canal: Panama"))
+	fmt.Println(IsPalindrome("palindrome"))
+	// Output:
+	// true
+	// false
+}
+
+/*
+Example functions serve three purposes.
+- The primary one is documentation.
+- Examples are executable tests run by `go test`.
+- Hands-on experimentation.
+
+Execute examples:
+$ go test -v gopl.io/ch11/word2
+=== RUN   TestIsPalindrome
+--- PASS: TestIsPalindrome (0.00s)
+=== RUN   ExampleIsPalindrome
+--- PASS: ExampleIsPalindrome (0.00s)
+PASS
+ok   gopl.io/ch11/word2 (cached)
+*/
