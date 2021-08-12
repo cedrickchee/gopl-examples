@@ -24,3 +24,8 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+
+# Output of the go test tool built-in support for several kinds of profiling
+cpu.log
+mem.log
+block.log
