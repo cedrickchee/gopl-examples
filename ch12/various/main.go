@@ -24,6 +24,9 @@ func main() {
 
 	// =========================================================================
 	displayExample()
+
+	// =========================================================================
+	settingVariablesWithReflectValue()
 }
 
 func Sprint(x interface{}) string {
@@ -273,4 +276,118 @@ func displayExample() {
 	// (*(*c.Tail).Tail).Value = 42
 	// (*(*(*c.Tail).Tail).Tail).Value = 42
 	// ...ad infinitum...
+}
+
+func settingVariablesWithReflectValue() {
+	{
+		x := 2                   // value    type    variable?
+		a := reflect.ValueOf(2)  // 2        int     no
+		b := reflect.ValueOf(x)  // 2        int     no
+		c := reflect.ValueOf(&x) // &x       *int    no
+		d := c.Elem()            // 2        int     yes (x)
+
+		// The value within `a` is not addressable. It is merely a copy of the
+		// integer 2. The same is true of `b`. The value within `c` is also
+		// non-addressable, being a copy of the pointer value `&x`. In fact, no
+		// `reflect.Value` returned by `reflect.ValueOf(x)` is addressable. But `d`,
+		// derived from `c` by dereferencing the pointer within it, refers to a
+		// variable and is thus addressable. We can use this approach, calling
+		// `reflect.ValueOf(&x).Elem()`, to obtain an addressable `Value` for any
+		// variable `x`.
+		//
+		// We can ask a `reflect.Value` whether it is addressable through its
+		// `CanAddr` method:
+		fmt.Println(a.CanAddr()) // "false"
+		fmt.Println(b.CanAddr()) // "false"
+		fmt.Println(c.CanAddr()) // "false"
+		fmt.Println(d.CanAddr()) // "true"
+	}
+
+	{
+		// To recover the variable from an addressable `reflect.Value` requires
+		// three steps. First, we call `Addr()`, which returns a `Value` holding
+		// a pointer to the variable. Next, we call `Interface()` on this
+		// `Value`, which returns an `interface{}` value containing the pointer.
+		// Finally, if we know the type of the variable, we can use a type
+		// assertion to retrieve the contents of the interface as an ordinary
+		// pointer. We can then update the variable through the pointer:
+		x := 2
+		d := reflect.ValueOf(&x).Elem()   // d refers to the variable x
+		px := d.Addr().Interface().(*int) // px := &x
+		*px = 3                           // x = 3
+		fmt.Println(x)                    // "3"
+
+		// Or, we can update the variable referred to by an addressable
+		// `reflect.Value` directly, without using a pointer, by calling the
+		// `reflect.Value.Set` method:
+		d.Set(reflect.ValueOf(4))
+		fmt.Println(x) // "4"
+
+		// The same checks for assignability that are ordinarily performed by
+		// the compiler are done at run time by the `Set` methods. Above, the
+		// variable and the value both have type `int`, but if the variable had
+		// been an `int64`, the program would panic, so it’s crucial to make
+		// sure the value is assignable to the type of the variable:
+		// d.Set(reflect.ValueOf(int64(5))) // panic: value of type int64 is not assignable to type int
+	}
+
+	{
+		// And of course calling `Set` on a non-addressable `reflect.Value`
+		// panics too:
+		x := 2
+		// b := reflect.ValueOf(x)
+		// b.Set(reflect.ValueOf(3)) // panic: Set using unaddressable value
+
+		// There are variants of `Set` specialized for certain groups of basic
+		// types: `SetInt`, `SetUint`, `SetString`, `SetFloat`, and so on:
+		d := reflect.ValueOf(&x).Elem()
+		d.SetInt(3)
+		fmt.Println(x) // "3"
+	}
+
+	{
+		// In some ways these methods are more forgiving. `SetInt`, for example,
+		// will succeed so long as the variable’s type is some kind of signed
+		// integer, or even a named type whose underlying type is a signed
+		// integer, and if the value is too large it will be quietly truncated
+		// to fit. But tread carefully: calling `SetInt` on a `reflect.Value`
+		// that refers to an `interface{}` variable will panic, even though
+		// `Set` would succeed.
+		x := 1
+		rx := reflect.ValueOf(&x).Elem()
+		rx.SetInt(2)               // OK, x = 2
+		rx.Set(reflect.ValueOf(3)) // OK, x = 3
+		// rx.SetString("hello") // panic: call of reflect.Value.SetString on int Value
+		// rx.Set(reflect.ValueOf("hello")) // panic: reflect.Set: value of type string is not assignable to type int
+		fmt.Println(x)
+
+		var y interface{}
+		ry := reflect.ValueOf(&y).Elem()
+		// ry.SetInt(2)               // panic: reflect: call of reflect.Value.SetInt on interface Value
+		ry.Set(reflect.ValueOf(3)) // OK, y = int(3)
+		// ry.SetString("hello")      // panic: reflect: call of reflect.Value.SetString on interface Value
+		ry.Set(reflect.ValueOf("hello")) // OK, y = "hello"
+		fmt.Println("y =", y)
+	}
+
+	{
+		// When we applied `Display` to `os.Stdout`, we found that reflection
+		// can read the values of unexported struct fields that are inaccessible
+		// according to the usual rules of the language, like the `fd int` field
+		// of an `os.File` struct on a Unix-like platform. However, reflection
+		// cannot update such values:
+		stdout := reflect.ValueOf(os.Stdout).Elem() // *os.Stdout, an os.File var
+		fmt.Println(stdout.Type())                  // "os.File"
+		fd := stdout.FieldByName("fd")
+		// fmt.Println(fd.Int()) // "1" // panic: reflect: call of reflect.Value.Int on zero Value
+		// fd.SetInt(2) // panic: unexported field // panic: reflect: call of reflect.Value.SetInt on zero Value
+
+		// An addressable `reflect.Value` records whether it was obtained by
+		// traversing an unexported struct field and, if so, disallows
+		// modification. Consequently, `CanAddr` is not usually the right
+		// check to use before setting a variable. The related method `CanSet`
+		// reports whether a `reflect.Value` is addressable _and_ settable:
+		fmt.Printf("fd.CanAddr() = %t, fd.CanSet() = %t \n",
+			fd.CanAddr(), fd.CanSet()) // "true false"
+	}
 }
